@@ -1,0 +1,84 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b9dfeb">
+<title>Hope — The World</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}body{background:#b9dfeb}#app{position:relative;width:100%;height:100%;overflow:hidden;background:linear-gradient(#a9d8ee,#dcebdc 70%,#a7c77e)}#world{position:absolute;inset:0}canvas{display:block;width:100%;height:100%;touch-action:none}
+.top{position:absolute;z-index:2;top:0;left:0;right:0;padding:calc(17px + env(safe-area-inset-top)) 18px 10px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;color:white;text-shadow:0 2px 12px #315b6b88}.logo{font-weight:850;font-size:18px;letter-spacing:.03em}.logo span{display:inline-grid;place-items:center;width:29px;height:29px;margin-right:7px;border-radius:10px;background:#ffffff55}.pill{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:750;padding:9px 12px;border:1px solid #ffffff66;border-radius:30px;background:#ffffff38;backdrop-filter:blur(8px)}
+.intro{position:absolute;z-index:2;top:18%;left:7%;max-width:440px;color:white;text-shadow:0 2px 18px #345c6c88;pointer-events:none}.eyebrow{font-size:10px;font-weight:800;letter-spacing:.2em;margin:0 0 9px}.intro h1{font:500 clamp(37px,6vw,65px)/.98 Georgia,serif;margin:0 0 12px}.intro p:last-child{font-size:14px;line-height:1.5;margin:0;max-width:320px}
+.hint{position:absolute;z-index:2;bottom:calc(27px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);white-space:nowrap;color:white;font-size:11px;font-weight:700;padding:10px 15px;border:1px solid #ffffff70;border-radius:30px;background:#ffffff40;backdrop-filter:blur(9px);text-shadow:0 1px 8px #355b5d}.foot{position:absolute;z-index:2;bottom:calc(9px + env(safe-area-inset-bottom));left:16px;color:#ffffffc9;font-size:9px;font-weight:800;letter-spacing:.17em}
+#loading{position:absolute;z-index:5;inset:0;display:grid;place-items:center;background:linear-gradient(155deg,#b9e5ed,#dcebd7);transition:opacity .45s,visibility .45s}#loading.hide{opacity:0;visibility:hidden;pointer-events:none}.loadbox{text-align:center;color:#45656b}.spinner{width:39px;height:39px;border:3px solid #ffffffaa;border-top-color:#9478bd;border-radius:50%;margin:auto;animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.loadbox h2{font:500 32px Georgia,serif;margin:12px 0 4px}.loadbox p{font-size:12px;margin:0;color:#647f7c}
+#error{position:absolute;z-index:8;left:16px;right:16px;top:50%;transform:translateY(-50%);max-width:520px;margin:auto;padding:20px;border:1px solid #e3aaaa;border-radius:17px;background:#fff7f4;color:#683d43;box-shadow:0 12px 40px #24454b33}#error[hidden]{display:none}#error p{font-size:13px;line-height:1.5;overflow-wrap:anywhere}button{border:0;border-radius:24px;background:#7659a7;color:white;padding:11px 17px;font-weight:750}
+@media(max-width:600px){.top{padding-left:14px;padding-right:14px}.pill{font-size:9px;padding:8px}.intro{top:19%;max-width:290px}.intro h1{font-size:42px}.intro p:last-child{font-size:12px;max-width:240px}.hint{font-size:10px;bottom:calc(26px + env(safe-area-inset-bottom))}}
+</style>
+<script>
+window.addEventListener('error',e=>{if(e.target&&e.target.tagName==='SCRIPT')window.__hopeError(e.message||'A required script could not load.')});
+window.addEventListener('unhandledrejection',e=>window.__hopeError(e.reason?.message||String(e.reason||'Unknown startup error')));
+window.__hopeError=function(message){const panel=document.getElementById('error');if(!panel)return;document.getElementById('error-text').textContent=message;panel.hidden=false;document.getElementById('loading')?.classList.add('hide')};
+</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="app">
+  <div id="world"></div>
+  <header class="top"><div class="logo"><span>✦</span>Hope</div><div class="pill">A new world begins</div></header>
+  <section class="intro"><p class="eyebrow">A LITTLE PLACE TO BELONG</p><h1>Your world<br>is waiting.</h1><p>Take a breath. Look around. This is only the beginning.</p></section>
+  <div class="hint">Drag to look around <span> · </span> Pinch or scroll to zoom</div>
+  <div class="foot">HOPE <span>•</span> FOUNDATION 01</div>
+  <div id="loading"><div class="loadbox"><div class="spinner"></div><h2>Hope</h2><p id="loading-text">Preparing your world…</p></div></div>
+  <div id="error" hidden role="alert"><strong>Hope couldn't start.</strong><p id="error-text"></p><button onclick="location.reload()">Try again</button></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+const host=document.getElementById('world');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xaed9ed);
+scene.fog=new THREE.Fog(0xc5dfd7,32,100);
+const camera=new THREE.PerspectiveCamera(48,1,.1,180);
+let yaw=0,pitch=.12,distance=21,dragging=false,lastX=0,lastY=0;
+function updateCamera(){camera.position.set(Math.sin(yaw)*distance,6.5+pitch*8,Math.cos(yaw)*distance);camera.lookAt(0,2,-3)}
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'default'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+host.appendChild(renderer.domElement);
+function resize(){const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false)}
+new ResizeObserver(resize).observe(host);resize();
+scene.add(new THREE.HemisphereLight(0xeaf8ff,0x718b55,2));
+const sun=new THREE.DirectionalLight(0xffedcf,2.4);sun.position.set(-12,22,10);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-28;sun.shadow.camera.right=28;sun.shadow.camera.top=28;sun.shadow.camera.bottom=-28;scene.add(sun);
+const material=(c)=>new THREE.MeshStandardMaterial({color:c,roughness:1});
+function mesh(parent,geo,mat,pos,scale){const o=new THREE.Mesh(geo,mat);o.position.set(...pos);if(scale)o.scale.set(...scale);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+mesh(scene,new THREE.PlaneGeometry(180,180),material(0x83ad63),[0,-.09,0]).rotation.x=-Math.PI/2;
+const stoneMat=material(0xd3c5a7);
+for(let i=0;i<27;i++){const z=17-i*1.3,x=Math.sin(i*.2)*1.8;const s=mesh(scene,new THREE.BoxGeometry(2.7,.1,1.05),stoneMat,[x,.01,z]);s.rotation.y=-Math.sin(i*.2)*.13}
+const gazebo=new THREE.Group();gazebo.position.set(-9,0,-5);scene.add(gazebo);
+const cream=material(0xf3e9d8),trim=material(0xd5b99a),roof=material(0x9c7896);
+mesh(gazebo,new THREE.CylinderGeometry(3.6,3.8,.28,8),trim,[0,.35,0]);
+mesh(gazebo,new THREE.CylinderGeometry(3.2,3.2,.18,8),cream,[0,.58,0]);
+for(let i=0;i<8;i++){const a=i*Math.PI/4;mesh(gazebo,new THREE.CylinderGeometry(.11,.13,3.6,8),cream,[Math.cos(a)*2.75,2.35,Math.sin(a)*2.75])}
+mesh(gazebo,new THREE.CylinderGeometry(.16,.16,.2,8),trim,[0,4.15,0]);
+const cap=mesh(gazebo,new THREE.ConeGeometry(4.1,1.65,8),roof,[0,5.05,0]);cap.rotation.y=Math.PI/8;
+const trunk=material(0x795b43),leaf=[0x4f8054,0x63965d,0x7da96b,0x568a68].map(material);
+const positions=[[-17,-11],[-14,-19],[-6,-23],[3,-25],[12,-20],[18,-13],[21,-3],[-21,2],[15,7],[-15,10],[7,-14]];
+positions.forEach(([x,z],i)=>{const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);mesh(g,new THREE.CylinderGeometry(.22,.34,2.6,7),trunk,[0,1.3,0]);const m=leaf[i%leaf.length];mesh(g,new THREE.SphereGeometry(1.65,10,8),m,[0,3.05,0],[1,1.05,1]);mesh(g,new THREE.SphereGeometry(1.18,10,8),m,[.72,3.55,.05]);mesh(g,new THREE.SphereGeometry(1.12,10,8),m,[-.75,3.45,-.08])});
+const petals=[0xf0a8c9,0xf3d27d,0xb9a2e8,0xffffff].map(material),center=material(0xe9b85d),stem=material(0x477c4b);
+for(let i=0;i<115;i++){const a=i*2.399,r=5.5+(i%15)*1.08,x=Math.cos(a)*r,z=Math.sin(a)*r*.68+1;if(Math.abs(x)<2.1&&z>0)continue;const f=new THREE.Group();f.position.set(x,0,z);scene.add(f);mesh(f,new THREE.CylinderGeometry(.025,.035,.38,5),stem,[0,.19,0]);for(let p=0;p<5;p++){const ang=p*Math.PI*2/5;mesh(f,new THREE.SphereGeometry(.105,7,6),petals[i%4],[Math.cos(ang)*.13,.39,Math.sin(ang)*.13],[1,.65,1])}mesh(f,new THREE.SphereGeometry(.075,7,6),center,[0,.41,0])}
+const cloudMat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.84,roughness:1});
+for(let i=0;i<7;i++){const c=new THREE.Group();c.position.set(-28+i*10,13+(i%3)*1.7,-34-(i%2)*7);scene.add(c);for(let j=0;j<4;j++)mesh(c,new THREE.SphereGeometry(1.5,9,7),cloudMat,[j*1.5,Math.sin(j)*.3,0],[1.35,.7,1])}
+updateCamera();
+const canvas=renderer.domElement;
+canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.005;pitch=Math.max(-.25,Math.min(.65,pitch+dy*.003));updateCamera()});
+canvas.addEventListener('pointerup',()=>dragging=false);canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('wheel',e=>{distance=Math.max(12,Math.min(34,distance+e.deltaY*.018));updateCamera()},{passive:true});
+let pinchStart=0;canvas.addEventListener('touchstart',e=>{if(e.touches.length===2)pinchStart=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)},{passive:true});
+canvas.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinchStart){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);distance=Math.max(12,Math.min(34,distance+(pinchStart-d)*.025));pinchStart=d;updateCamera()}},{passive:true});
+function animate(){requestAnimationFrame(animate);renderer.render(scene,camera)}animate();
+document.getElementById('loading').classList.add('hide');
+</script>
+</body>
+</html>
