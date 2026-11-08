@@ -1,575 +1,161 @@
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#b9dce8">
-<title>Hope — The World</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>The World</title>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#b9dce8;font-family:system-ui,sans-serif}
-#world{position:fixed;inset:0}
-canvas{display:block;width:100%;height:100%;touch-action:none}
-button,input{font:inherit}
-.brand{position:fixed;z-index:3;top:15px;left:16px;color:white;font-weight:850;text-shadow:0 2px 10px #345b6b}
-.brand b{display:inline-grid;place-items:center;background:#ffffff55;border-radius:10px;width:30px;height:30px;margin-right:6px}
-.hud{position:fixed;z-index:3;top:58px;left:15px;color:white;font-size:13px;font-weight:750;text-shadow:0 2px 8px #345b6b;pointer-events:none}
-.panel{position:fixed;z-index:8;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,420px);padding:25px;border:1px solid #ffffffaa;border-radius:25px;background:#fffdf0ed;color:#4c6869;box-shadow:0 20px 70px #294b5544;text-align:center;backdrop-filter:blur(15px)}
-.panel h1{font:500 42px Georgia,serif;margin:0 0 8px}
-.panel p{font-size:13px;line-height:1.5;color:#71878a}
-.panel input{width:100%;padding:13px;border:1px solid #d3e2dc;border-radius:12px;background:white;color:#405b5d;margin:12px 0;outline:none}
-.primary{border:0;border-radius:30px;background:linear-gradient(100deg,#8972ae,#739e9b);color:white;font-weight:800;padding:14px;width:100%}
-.small{font-size:10px!important;letter-spacing:.15em;font-weight:800;color:#9685ad!important}
-.hidden{display:none!important}
-#notice{position:fixed;z-index:4;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 15px;border:1px solid #ffffff80;border-radius:30px;background:#ffffff55;color:white;font-size:11px;text-shadow:0 1px 5px #345b6b;white-space:nowrap;pointer-events:none}
-#joystick{position:fixed;z-index:5;left:20px;bottom:25px;width:116px;height:116px;border:1px solid #ffffff99;border-radius:50%;background:#ffffff38;touch-action:none}
-#knob{position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%);border-radius:50%;background:#ffffffc9;box-shadow:0 3px 12px #345b6b44}
-#jump{position:fixed;z-index:5;right:23px;bottom:43px;width:68px;height:68px;border:1px solid #ffffffaa;border-radius:50%;background:#ffffff75;color:#45636a;font-weight:850;touch-action:none}
-#message{position:fixed;z-index:6;left:50%;bottom:165px;transform:translateX(-50%);padding:10px 16px;border-radius:24px;background:#8b72b9;color:white;font-size:12px;font-weight:800;display:none;white-space:nowrap}
-@media(min-width:750px){#joystick,#jump{display:none}#notice{bottom:18px}}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe8c4;font-family:system-ui,sans-serif;touch-action:none}
+canvas{display:block}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#cfe8c4;color:#2f4f2f;z-index:10;text-align:center;padding:16px;font-size:20px}
+#status{margin-top:8px;font-size:14px;opacity:.8}
+#errbox{display:none;position:fixed;left:8px;right:8px;bottom:8px;max-height:45%;overflow:auto;background:#300;color:#fff;font:12px monospace;padding:10px;border-radius:8px;z-index:20;white-space:pre-wrap}
+#ver{position:fixed;top:6px;left:8px;font-size:11px;color:#2f4f2f;opacity:.7;z-index:5}
 </style>
-<script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
-</script>
 </head>
 <body>
-<div id="world"></div>
-<div class="brand"><b>✦</b>Hope</div>
-<div class="hud hidden" id="hud">Welcome, <span id="playerLabel"></span> ✦</div>
-<div id="notice" class="hidden">Walk to either mannequin and tap/click it to change your body</div>
-<div id="joystick" class="hidden"><div id="knob"></div></div>
-<button id="jump" class="hidden">JUMP</button>
-<div id="message"></div>
+<div id="ver">The World v0.1 (step 1: scene)</div>
+<div id="loading"><div>Creating your world…</div><div id="status">Starting…</div></div>
+<div id="errbox"></div>
 
-<section class="panel" id="start">
-<p class="small">A LITTLE PLACE TO BELONG</p>
-<h1>Welcome to Hope</h1>
-<p>Choose your name and enter the world. You'll find the male and female mannequins inside.</p>
-<input id="name" maxlength="16" placeholder="Your name" autocomplete="nickname">
-<button class="primary" id="startButton">Enter the world</button>
-<p>Everyone starts with the same body. You can choose your body after entering.</p>
-</section>
+<script>
+// Classic script: runs first, so it can catch anything that goes wrong later.
+function showError(msg){
+  var b=document.getElementById('errbox');
+  b.style.display='block';
+  b.textContent+=msg+'\n\n';
+  var s=document.getElementById('status');
+  if(s) s.textContent='Something went wrong (see red box)';
+}
+window.addEventListener('error',function(e){showError('ERROR: '+e.message+' ('+(e.filename||'')+':'+(e.lineno||'')+')');});
+window.addEventListener('unhandledrejection',function(e){showError('PROMISE ERROR: '+(e.reason&&e.reason.message?e.reason.message:e.reason));});
+</script>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
 
 <script type="module">
-import * as THREE from 'three';
-
-const host=document.querySelector('#world');
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xb9dce8);
-scene.fog=new THREE.Fog(0xb9dce8,38,115);
-
-const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.08,220);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'default'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputColorSpace=THREE.SRGBColorSpace;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.1;
-host.appendChild(renderer.domElement);
-
-function resize(){
- camera.aspect=innerWidth/innerHeight;
- camera.updateProjectionMatrix();
- renderer.setSize(innerWidth,innerHeight);
-}
-addEventListener('resize',resize);
-resize();
-
-scene.add(new THREE.HemisphereLight(0xeaf8ff,0x718b55,2));
-const sun=new THREE.DirectionalLight(0xffedcf,2.5);
-sun.position.set(-15,24,12);
-sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=-35;
-sun.shadow.camera.right=35;
-sun.shadow.camera.top=35;
-sun.shadow.camera.bottom=-35;
-scene.add(sun);
-
-const mat=c=>new THREE.MeshStandardMaterial({color:c,roughness:.9});
-function put(parent,geo,material,x,y,z,sx=1,sy=1,sz=1){
- const m=new THREE.Mesh(geo,material);
- m.position.set(x,y,z);
- m.scale.set(sx,sy,sz);
- m.castShadow=true;
- m.receiveShadow=true;
- parent.add(m);
- return m;
-}
-
-// Meadow
-const ground=put(scene,new THREE.PlaneGeometry(190,190),mat(0x83ad63),0,-.12,0);
-ground.rotation.x=-Math.PI/2;
-
-const stone=mat(0xd5c8ae);
-for(let i=0;i<34;i++){
- const z=20-i*1.25,x=Math.sin(i*.19)*1.8;
- const p=put(scene,new THREE.BoxGeometry(2.8,.13,1.05),stone,x,.01,z);
- p.rotation.y=-Math.sin(i*.19)*.12;
-}
-
-// Gazebo
-const gx=-10,gz=-8,cream=mat(0xf3e9d8),trim=mat(0xd2b596);
-put(scene,new THREE.CylinderGeometry(3.6,3.8,.3,8),trim,gx,.35,gz);
-for(let i=0;i<8;i++){
- const a=i*Math.PI/4;
- put(scene,new THREE.CylinderGeometry(.11,.13,3.7,8),cream,gx+Math.cos(a)*2.7,2.3,gz+Math.sin(a)*2.7);
-}
-put(scene,new THREE.ConeGeometry(4.1,1.7,8),mat(0x9c7896),gx,4.9,gz);
-
-// Trees
-const trunk=mat(0x795b43);
-const leaves=[0x4f8054,0x63965d,0x7da96b,0x568a68].map(mat);
-[[-18,-12],[-15,-22],[-6,-26],[5,-27],[14,-21],[20,-12],[22,-2],[-22,4],[16,9],[-16,12],[8,-15]].forEach(([x,z],i)=>{
- put(scene,new THREE.CylinderGeometry(.22,.34,2.7,7),trunk,x,1.35,z);
- put(scene,new THREE.SphereGeometry(1.7,10,8),leaves[i%4],x,3.1,z,1,1.1,1);
- put(scene,new THREE.SphereGeometry(1.15,10,8),leaves[i%4],x+.7,3.7,z);
-});
-
-// Flowers
-const petals=[0xf0a8c9,0xf3d27d,0xb9a2e8,0xffffff].map(mat);
-for(let i=0;i<130;i++){
- const a=i*2.399,r=6+(i%16)*.9,x=Math.cos(a)*r,z=Math.sin(a)*r*.7+2;
- if(Math.abs(x)<2.3&&z>0)continue;
- put(scene,new THREE.CylinderGeometry(.025,.035,.4,5),mat(0x477c4b),x,.2,z);
- put(scene,new THREE.SphereGeometry(.14,8,7),petals[i%4],x,.43,z,.9,.7,.9);
-}
-
-// Clouds
-const cloudmat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:.82});
-for(let i=0;i<8;i++)for(let j=0;j<4;j++){
- put(scene,new THREE.SphereGeometry(1.5,9,7),cloudmat,-32+i*10+j*1.5,14+(i%3)*1.4,-38-(i%2)*7,1.3,.7,1);
-}
-</script>
-</body>
-</html>
-
-// Character materials
-const skin=mat(0xf0c4a4);
-const hair=mat(0x49352f);
-const white=mat(0xf5f0eb);
-const pink=mat(0xc8a7d8);
-const blue=mat(0x9bb8d4);
-const trousers=mat(0x65758b);
-const shoes=mat(0xf0e9df);
-
-// A rig with separate arms and legs for animation
-function makeCharacter(type='neutral',mannequin=false){
- const root=new THREE.Group();
- const parts={};
- const female=type==='female';
- const male=type==='male';
-
- const shirt=mannequin?white:mat(0xb9b8a8);
- const legMaterial=mannequin?(female?pink:blue):trousers;
- const torsoWidth=female?.72:(male?.88:.78);
- const torsoHeight=female?.82:.88;
-
- put(root,new THREE.SphereGeometry(.31,18,14),skin,0,2.03,0,1,.98,.92);
- parts.torso=put(root,new THREE.BoxGeometry(torsoWidth,torsoHeight,.38),shirt,0,1.28,0);
- put(root,new THREE.CylinderGeometry(.105,.12,.18,10),skin,0,1.78,0);
-
- // Body shape: feminine waist/hips or broader male shoulders
- if(female){
-  put(root,new THREE.CylinderGeometry(.28,.43,.38,12),mannequin?pink:shirt,0,.83,0,1,1,.85);
- }
- if(male){
-  put(root,new THREE.BoxGeometry(.9,.3,.4),shirt,0,1.63,0);
- }
-
- // Hair cap
- put(root,new THREE.SphereGeometry(.335,16,12),hair,0,2.22,-.055,1.04,.67,1.02);
-
- if(female){
-  // Long hair down the back and both sides
-  put(root,new THREE.BoxGeometry(.58,.9,.16),hair,0,1.78,-.22);
-  put(root,new THREE.CapsuleGeometry(.095,.72,5,8),hair,-.31,1.83,.015);
-  put(root,new THREE.CapsuleGeometry(.095,.72,5,8),hair,.31,1.83,.015);
- }else{
-  // Short textured hairstyle
-  for(let i=0;i<5;i++){
-   put(root,new THREE.ConeGeometry(.12,.23,5),hair,-.22+i*.11,2.43+(i%2)*.04,.02);
-  }
- }
-
- // Simple face
- const eyes=mat(0x463a38);
- put(root,new THREE.SphereGeometry(.027,8,6),eyes,-.105,2.06,.276);
- put(root,new THREE.SphereGeometry(.027,8,6),eyes,.105,2.06,.276);
-
- // Arms and legs have pivots at their joints
- for(const side of [-1,1]){
-  const arm=new THREE.Group();
-  arm.position.set(side*(torsoWidth/2+.12),1.62,0);
-  root.add(arm);
-  put(arm,new THREE.CapsuleGeometry(.095,.52,5,9),skin,0,-.32,0);
-  put(arm,new THREE.SphereGeometry(.115,10,8),skin,0,-.72,0);
-  parts[side<0?'armL':'armR']=arm;
-
-  const leg=new THREE.Group();
-  leg.position.set(side*(female?.19:.23),.76,0);
-  root.add(leg);
-  put(leg,new THREE.BoxGeometry(female?.22:.25,.78,.31),legMaterial,0,-.39,0);
-  put(leg,new THREE.BoxGeometry(.28,.17,.43),shoes,0,-.79,.055);
-  parts[side<0?'legL':'legR']=leg;
- }
- return {root,parts,type};
-}
-
-// Floating labels above the mannequins
-function makeLabel(words,color){
- const c=document.createElement('canvas');
- c.width=512;c.height=128;
- const ctx=c.getContext('2d');
- ctx.fillStyle='rgba(255,255,255,.9)';
- ctx.beginPath();ctx.roundRect(8,8,496,112,48);ctx.fill();
- ctx.fillStyle=color;
- ctx.font='bold 46px system-ui';
- ctx.textAlign='center';ctx.textBaseline='middle';
- ctx.fillText(words,256,65);
- const texture=new THREE.CanvasTexture(c);
- const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));
- sprite.scale.set(3.3,.82,1);
- return sprite;
-}
-
-// Build the two selectable mannequins in the world
-const mannequins=[];
-function createMannequin(type,x){
- const platform=new THREE.Group();
- platform.position.set(x,0,-5);
- scene.add(platform);
-
- put(platform,new THREE.CylinderGeometry(1.55,1.65,.28,48),
-     mat(type==='female'?0xe9b4df:0x9dcaf1),0,.15,0);
-
- const character=makeCharacter(type,true);
- character.root.position.y=.3;
- platform.add(character.root);
-
- const label=makeLabel(type==='female'?'FEMALE':'MALE',
-     type==='female'?'#a3429a':'#315fbb');
- label.position.set(0,3.15,0);
- platform.add(label);
-
- // Invisible clickable target around the mannequin
- const hit=put(platform,new THREE.CylinderGeometry(1.5,1.5,3.6,16),
-     new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}),
-     0,1.8,0);
-
- mannequins.push({type,platform,character,hit});
-}
-createMannequin('female',-3.1);
-createMannequin('male',3.1);
-
-// Player starts with the SAME neutral body as everyone else
-let player=makeCharacter('neutral',false);
-scene.add(player.root);
-player.root.position.set(0,0,5);
-
-let playerName='Friend';
-let playing=false;
-let selectedType='neutral';
-
-document.querySelector('#startButton').addEventListener('click',()=>{
- playerName=document.querySelector('#name').value.trim().slice(0,16)||'Friend';
- document.querySelector('#playerLabel').textContent=playerName;
- document.querySelector('#start').classList.add('hidden');
- document.querySelector('#hud').classList.remove('hidden');
- document.querySelector('#notice').classList.remove('hidden');
- document.querySelector('#joystick').classList.remove('hidden');
- document.querySelector('#jump').classList.remove('hidden');
- playing=true;
-});
-
-// Change the player's body when a mannequin is clicked
-const raycaster=new THREE.Raycaster();
-const pointer=new THREE.Vector2();
-let messageTimer;
-
-function showMessage(text){
- const box=document.querySelector('#message');
- box.textContent=text;
- box.style.display='block';
- clearTimeout(messageTimer);
- messageTimer=setTimeout(()=>box.style.display='none',1800);
-}
-
-function chooseMannequin(event){
- pointer.x=event.clientX/innerWidth*2-1;
- pointer.y=-(event.clientY/innerHeight)*2+1;
- raycaster.setFromCamera(pointer,camera);
-
- const hits=raycaster.intersectObjects(mannequins.map(m=>m.hit));
- if(!hits.length)return;
-
- const selected=mannequins.find(m=>m.hit===hits[0].object);
- if(!selected)return;
-
- const oldPosition=player.root.position.clone();
- const oldRotation=player.root.rotation.y;
-
- scene.remove(player.root);
- player=makeCharacter(selected.type,true);
- scene.add(player.root);
- player.root.position.copy(oldPosition);
- player.root.rotation.y=oldRotation;
- selectedType=selected.type;
-
- showMessage(selected.type==='female'?'Female body selected ✓':'Male body selected ✓');
-}
-
-// Roblox-style third-person camera
-let yaw=0;
-let pitch=.16;
-let distance=10;
-const minDistance=.16;
-const maxDistance=25;
-
-function updateCamera(){
- const target=new THREE.Vector3(
-  player.root.position.x,
-  player.root.position.y+(distance<.65?1.72:1.15),
-  player.root.position.z
- );
-
- const horizontal=Math.cos(pitch)*distance;
- camera.position.set(
-  target.x+Math.sin(yaw)*horizontal,
-  target.y+Math.sin(pitch)*distance,
-  target.z+Math.cos(yaw)*horizontal
- );
-
- camera.lookAt(target);
- camera.fov=distance<.65?78:68;
- camera.updateProjectionMatrix();
-
- // Hide the head and hair when the camera enters first person
- player.root.traverse(object=>{
-  if(object.isMesh&&object.position.y>1.75){
-   object.visible=distance>.65;
-  }
- });
-}
-
-// Drag camera: right means look right; up means look up
-let dragging=false;
-let lastX=0,lastY=0;
-let dragMoved=false;
-const activePointers=new Set();
-
-renderer.domElement.addEventListener('pointerdown',e=>{
- if(e.pointerType==='mouse'&&e.button!==0)return;
- activePointers.add(e.pointerId);
- if(activePointers.size===1){
-  dragging=true;
-  dragMoved=false;
-  lastX=e.clientX;
-  lastY=e.clientY;
- }
- renderer.domElement.setPointerCapture(e.pointerId);
-});
-
-renderer.domElement.addEventListener('pointermove',e=>{
- if(!dragging||activePointers.size!==1)return;
- const dx=e.clientX-lastX;
- const dy=e.clientY-lastY;
-
- if(Math.abs(dx)+Math.abs(dy)>4)dragMoved=true;
-
- yaw+=dx*.006;
- pitch=THREE.MathUtils.clamp(pitch+dy*.004,-.2,1.05);
-
- lastX=e.clientX;
- lastY=e.clientY;
-});
-
-renderer.domElement.addEventListener('pointerup',e=>{
- if(dragging&&!dragMoved&&playing)chooseMannequin(e);
- activePointers.delete(e.pointerId);
- dragging=activePointers.size===1;
- if(dragging){
-  lastX=e.clientX;
-  lastY=e.clientY;
- }
-});
-
-renderer.domElement.addEventListener('pointercancel',e=>{
- activePointers.delete(e.pointerId);
- dragging=false;
-});
-
-// PC mouse wheel zoom
-renderer.domElement.addEventListener('wheel',e=>{
- distance=THREE.MathUtils.clamp(
-  distance+e.deltaY*.018,minDistance,maxDistance
- );
-},{passive:true});
-
-// Mobile two-finger pinch zoom
-let pinchStart=0;
-renderer.domElement.addEventListener('touchstart',e=>{
- if(e.touches.length===2){
-  pinchStart=Math.hypot(
-   e.touches[0].clientX-e.touches[1].clientX,
-   e.touches[0].clientY-e.touches[1].clientY
-  );
- }
-},{passive:true});
-
-renderer.domElement.addEventListener('touchmove',e=>{
- if(e.touches.length===2&&pinchStart){
-  const current=Math.hypot(
-   e.touches[0].clientX-e.touches[1].clientX,
-   e.touches[0].clientY-e.touches[1].clientY
-  );
-  distance=THREE.MathUtils.clamp(
-   distance+(pinchStart-current)*.035,
-   minDistance,maxDistance
-  );
-  pinchStart=current;
- }
-},{passive:true});
-
-// Keyboard movement
-const keys={};
-addEventListener('keydown',e=>{
- keys[e.key.toLowerCase()]=true;
- if(e.code==='Space'){
-  e.preventDefault();
-  jump();
- }
-});
-addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
-
-// Mobile joystick
-const stick=document.querySelector('#joystick');
-const knob=document.querySelector('#knob');
-let joyX=0,joyY=0,stickOn=false;
-
-function moveStick(e){
- const r=stick.getBoundingClientRect();
- const dx=e.clientX-(r.left+r.width/2);
- const dy=e.clientY-(r.top+r.height/2);
- const len=Math.hypot(dx,dy);
- const k=Math.min(1,42/(len||1));
- joyX=dx*k/42;
- joyY=dy*k/42;
- knob.style.left=(50+joyX*38)+'%';
- knob.style.top=(50+joyY*38)+'%';
-}
-
-stick.addEventListener('pointerdown',e=>{
- stickOn=true;
- stick.setPointerCapture(e.pointerId);
- moveStick(e);
-});
-stick.addEventListener('pointermove',e=>{
- if(stickOn)moveStick(e);
-});
-
-function resetStick(){
- stickOn=false;
- joyX=0;
- joyY=0;
- knob.style.left='50%';
- knob.style.top='50%';
-}
-stick.addEventListener('pointerup',resetStick);
-stick.addEventListener('pointercancel',resetStick);
-
-// Jump for keyboard and mobile button
-let vertical=0;
-let grounded=true;
-
-function jump(){
- if(playing&&grounded){
-  vertical=7.3;
-  grounded=false;
- }
-}
-document.querySelector('#jump').addEventListener('pointerdown',e=>{
- e.preventDefault();
- jump();
-});
-
-// Main game loop
-let previousTime=0;
-
-function animate(time){
- requestAnimationFrame(animate);
- const dt=Math.min((time-previousTime)/1000||0,.04);
- previousTime=time;
-
- let moving=false;
-
- if(playing){
-  let side=joyX;
-  let forward=-joyY;
-
-  if(keys.w||keys.arrowup)forward+=1;
-  if(keys.s||keys.arrowdown)forward-=1;
-  if(keys.a||keys.arrowleft)side-=1;
-  if(keys.d||keys.arrowright)side+=1;
-
-  const length=Math.hypot(side,forward);
-
-  if(length>.08){
-   moving=true;
-   side/=Math.max(1,length);
-   forward/=Math.max(1,length);
-
-   const moveX=side*Math.cos(yaw)-forward*Math.sin(yaw);
-   const moveZ=-side*Math.sin(yaw)-forward*Math.cos(yaw);
-
-   const speed=keys.shift?7.2:4.5;
-
-   player.root.position.x+=moveX*speed*dt;
-   player.root.position.z+=moveZ*speed*dt;
-
-   player.root.position.x=THREE.MathUtils.clamp(player.root.position.x,-38,38);
-   player.root.position.z=THREE.MathUtils.clamp(player.root.position.z,-38,32);
-
-   player.root.rotation.y=Math.atan2(moveX,moveZ);
+const setStatus = t => { document.getElementById('status').textContent = t; };
+
+try {
+  setStatus('1/5 Loading 3D engine…');
+  const THREE = await import('three');
+
+  setStatus('2/5 Checking graphics…');
+  const test = document.createElement('canvas');
+  if (!(test.getContext('webgl2') || test.getContext('webgl'))) throw new Error('WebGL is not available on this device/browser.');
+
+  setStatus('3/5 Creating renderer…');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  setStatus('4/5 Building meadow…');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fd3f5);
+  scene.fog = new THREE.Fog(0x9fd3f5, 40, 140);
+
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  sun.position.set(30, 50, 20);
+  scene.add(sun);
+
+  // Ground
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshLambertMaterial({ color: 0x6fbf5a }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+
+  // Path
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(4, 60), new THREE.MeshLambertMaterial({ color: 0xd9c8a0 }));
+  path.rotation.x = -Math.PI / 2;
+  path.position.y = 0.02;
+  scene.add(path);
+
+  // Trees (simple, fixed positions so every player sees the same world)
+  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
+  const leafMat = new THREE.MeshLambertMaterial({ color: 0x2f8f3f });
+  for (let i = 0; i < 24; i++) {
+    const a = i * 2.399963; // golden angle spread
+    const r = 14 + (i % 6) * 5;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (Math.abs(x) < 4) continue; // keep the path clear
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2, 8), trunkMat);
+    trunk.position.set(x, 1, z);
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.8, 4.5, 8), leafMat);
+    leaves.position.set(x, 4, z);
+    scene.add(trunk, leaves);
   }
 
-  // Gravity and jumping
-  vertical-=18*dt;
-  player.root.position.y+=vertical*dt;
+  // Placeholder marker so we can see the render loop is alive (replaced by avatars later)
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xff7aa8 }));
+  marker.position.set(0, 0.5, 0);
+  scene.add(marker);
 
-  if(player.root.position.y<=0){
-   player.root.position.y=0;
-   vertical=0;
-   grounded=true;
+  // Camera orbit: drag to rotate, wheel / pinch to zoom
+  let yaw = 0, pitch = 0.45, dist = 10;
+  const target = new THREE.Vector3(0, 1.5, 0);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function placeCamera() {
+    camera.position.set(
+      target.x + Math.sin(yaw) * Math.cos(pitch) * dist,
+      target.y + Math.sin(pitch) * dist,
+      target.z + Math.cos(yaw) * Math.cos(pitch) * dist
+    );
+    camera.lookAt(target);
   }
 
-  // Coordinated walk cycle:
-  // Both arms move together.
-  // Both legs move together, opposite to the arms.
-  const stride=moving?Math.sin(time*(keys.shift?.014:.010))*.55:0;
+  const pointers = new Map();
+  let pinchStart = 0, distStart = 0;
+  const el = renderer.domElement;
+  el.addEventListener('pointerdown', e => {
+    el.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinchStart = Math.hypot(a.x - b.x, a.y - b.y);
+      distStart = dist;
+    }
+  });
+  el.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    if (pointers.size === 1) {
+      yaw -= (e.clientX - p.x) * 0.006;
+      pitch = clamp(pitch + (e.clientY - p.y) * 0.006, 0.1, 1.3);
+    }
+    p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchStart > 0) dist = clamp(distStart * (pinchStart / d), 4, 25);
+    }
+  });
+  const endPointer = e => { pointers.delete(e.pointerId); };
+  el.addEventListener('pointerup', endPointer);
+  el.addEventListener('pointercancel', endPointer);
+  el.addEventListener('wheel', e => { dist = clamp(dist + e.deltaY * 0.01, 4, 25); e.preventDefault(); }, { passive: false });
 
-  player.parts.armL.rotation.x=stride;
-  player.parts.armR.rotation.x=stride;
-  player.parts.legL.rotation.x=-stride;
-  player.parts.legR.rotation.x=-stride;
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
 
-  // Gentle body movement while walking
-  player.parts.torso.position.y=1.28+(moving?Math.abs(stride)*.035:0);
- }
-
- // Gentle idle movement on mannequin platforms
- mannequins.forEach(m=>{
-  m.character.root.position.y=.3+Math.sin(time*.0018)*.035;
- });
-
- updateCamera();
- renderer.render(scene,camera);
+  setStatus('5/5 Starting…');
+  let first = true;
+  renderer.setAnimationLoop(() => {
+    marker.rotation.y += 0.01;
+    placeCamera();
+    renderer.render(scene, camera);
+    if (first) { first = false; document.getElementById('loading').style.display = 'none'; }
+  });
+} catch (err) {
+  showError('STARTUP FAILED: ' + (err && err.message ? err.message : err));
 }
-
-updateCamera();
-requestAnimationFrame(animate);
 </script>
 </body>
 </html>
